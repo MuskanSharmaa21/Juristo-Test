@@ -17,8 +17,6 @@ import {
   Copy,
   Eye,
   EyeOff,
-  CheckCircle,
-  XCircle,
 } from "lucide-react";
 import {
   Dialog,
@@ -75,14 +73,13 @@ export default function Sidebar() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [coupon, setCoupon] = useState("");
   const [couponMessage, setCouponMessage] = useState("");
+  const [appliedDiscount, setAppliedDiscount] = useState(0); // New state for applied discount
   const [billPlan, setBillPlan] = useState("monthly");
-  const [appliedCoupon, setAppliedCoupon] = useState(null);
-  const [discountPercentage, setDiscountPercentage] = useState(0);
-  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
   const isMonthly = billPlan === "monthly";
   const [apiKeys, setApiKeys] = useState([]);
   // Track which keys are visible (unmasked)
   const [visibleKeys, setVisibleKeys] = useState({});
+  const [processingPlan, setProcessingPlan] = useState(null);
 
   // Fetch API keys for the current user.
   const fetchApiKeys = async () => {
@@ -109,21 +106,70 @@ export default function Sidebar() {
     }
   }, [showSettings, user]);
 
-  const handleNewsletterSubscribe = () => {
-    toast({
-      title: "Subscribed",
-      description: "You've subscribed to the newsletter!",
-    });
-    setUser({ ...user, newsletterSubscribed: true });
-  };
+  console.log("User", user)
 
-  const handleNewsletterOptOut = () => {
-    toast({
-      title: "Opted Out",
-      description: "You've opted out of the newsletter.",
+// Helper function to update user and localStorage
+const updateUserData = (updatedUser) => {
+  setUser(updatedUser);
+  if (typeof window !== "undefined") {
+    localStorage.setItem("user", JSON.stringify(updatedUser));
+  }
+};
+
+// Newsletter Subscribe Function with localStorage update
+const handleNewsletterSubscribe = async () => {
+  try {
+    const response = await axios.put("http://localhost:5000/api/users/subscribe-newsletter", {
+      email: user?.email
     });
-    setUser({ ...user, newsletterSubscribed: false });
-  };
+    
+    if (response.status === 200) {
+      toast({
+        title: "Subscribed",
+        description: "You've subscribed to the newsletter!",
+      });
+      
+      // Update user state and localStorage
+      const updatedUser = { ...user, newsLetterSubscribed: true };
+      updateUserData(updatedUser);
+    }
+  } catch (error) {
+    console.error("Newsletter subscription failed:", error);
+    toast({
+      title: "Error",
+      description: error.response?.data?.error || "Failed to subscribe to newsletter",
+      variant: "destructive",
+    });
+  }
+};
+
+// Newsletter Opt-out Function with localStorage update
+const handleNewsletterOptOut = async () => {
+  try {
+    const response = await axios.put("http://localhost:5000/api/users/subscribe-newsletter", {
+      email: user?.email,
+      unsubscribe: true // Add this flag to handle opt-out
+    });
+    
+    if (response.status === 200) {
+      toast({
+        title: "Opted Out",
+        description: "You've opted out of the newsletter.",
+      });
+      
+      // Update user state and localStorage
+      const updatedUser = { ...user, newsLetterSubscribed: false };
+      updateUserData(updatedUser);
+    }
+  } catch (error) {
+    console.error("Newsletter opt-out failed:", error);
+    toast({
+      title: "Error",
+      description: error.response?.data?.error || "Failed to opt out of newsletter",
+      variant: "destructive",
+    });
+  }
+};
 
   const handleLogout = async () => {
     if (typeof window !== "undefined") {
@@ -136,115 +182,81 @@ export default function Sidebar() {
     setSelectedChat(null);
   };
 
-  // Apply coupon function
-  const handleApplyCoupon = async () => {
-    if (!coupon.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter a coupon code",
-        variant: "destructive",
-      });
-      return;
-    }
+// Function to handle coupon application and validation
+const handleApplyCoupon = async () => {
+  if (!coupon) {
+    setCouponMessage("Please enter a coupon code.");
+    setAppliedDiscount(0);
+    return;
+  }
+  
+  setCouponMessage("Checking coupon...");
+  setAppliedDiscount(0);
 
-    setIsApplyingCoupon(true);
-    setCouponMessage("");
-    
-    try {
-      const response = await axios.post("/api/coupon/validate", {
-        couponCode: coupon,
-        userId: user?._id,
-      });
-      
-      const { valid, discount, message } = response.data;
-      
-      if (valid) {
-        setAppliedCoupon(coupon);
-        setDiscountPercentage(discount);
-        setCouponMessage(`Coupon applied successfully! ${discount}% discount`);
-        
-        toast({
-          title: "Coupon Applied! 🎉",
-          description: `You saved ${discount}% with coupon "${coupon}"`,
-          duration: 5000,
-        });
-      } else {
-        setCouponMessage(message || "Invalid coupon code");
-        toast({
-          title: "Invalid Coupon",
-          description: message || "The coupon code you entered is not valid",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error("Coupon validation failed", error);
-      const errorMessage = error.response?.data?.error || "Failed to validate coupon";
-      setCouponMessage(errorMessage);
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
-      });
-    }
-    
-    setIsApplyingCoupon(false);
-  };
+  try {
+    // Find the relevant plan to get the base price for validation
+    const planName = 'Advance'; // Assuming a user would apply a coupon to an advanced plan
+    const plan = plans.find(p => p.name.toLowerCase() === planName.toLowerCase());
+    if (!plan) throw new Error("Plan not found for validation.");
 
-  // Remove coupon function
-  const handleRemoveCoupon = () => {
-    setAppliedCoupon(null);
-    setDiscountPercentage(0);
-    setCoupon("");
-    setCouponMessage("");
+    const cartTotal = isMonthly ? plan.monthly : plan.annually;
     
-    toast({
-      title: "Coupon Removed",
-      description: "Coupon has been removed from your order",
+    const response = await axios.post("/api/coupons", {
+      couponCode: coupon,
+      cartTotal: cartTotal,
     });
-  };
-
-  const handleBuyNow = async (plan) => {
-    setIsProcessing(true);
-    setCouponMessage("");
-    try {
-      const response = await axios.post("/api/cashfree/initiate", {
-        plan,
-        coupon: appliedCoupon,
-        discountPercentage,
-        userId: user?._id,
-      });
-      const { payment_link, message } = response.data;
-      if (payment_link) {
-        window.location.href = payment_link;
-      } else {
-        setCouponMessage(
-          message || "Payment processed. Your plan has been updated."
-        );
-        toast({
-          title: "Success",
-          description: message || "Your plan has been updated successfully!",
-        });
-      }
-    } catch (error) {
-      console.error("Payment initiation failed", error);
-      const errorMessage = error.response?.data?.error || "Payment initiation failed. Please try again.";
-      setCouponMessage(errorMessage);
-      toast({
-        title: "Payment Failed",
-        description: errorMessage,
-        variant: "destructive",
-      });
+    
+    if (response.data.valid) {
+      const discountAmount = response.data.discount;
+      setAppliedDiscount(discountAmount);
+      setCouponMessage(`Coupon applied! You get ${discountAmount}% off.`);
+    } else {
+      setCouponMessage(response.data.error || "Invalid coupon code.");
+      setAppliedDiscount(0);
     }
-    setIsProcessing(false);
-  };
+  } catch (error) {
+    console.error("Coupon validation failed:", error);
+    setCouponMessage(error.response?.data?.error || "Error applying coupon.");
+    setAppliedDiscount(0);
+  }
+};
 
-  // Calculate discounted price
-  const getDiscountedPrice = (originalPrice) => {
-    if (appliedCoupon && discountPercentage > 0) {
-      return Math.round(originalPrice * (1 - discountPercentage / 100));
+const handleBuyNow = async (planName) => {
+  setProcessingPlan(planName);
+  setCouponMessage("");
+
+  try {
+    const plan = plans.find(p => p.name.toLowerCase() === planName);
+    if (!plan) {
+      throw new Error("Invalid plan selected.");
     }
-    return originalPrice;
-  };
+    
+    const price = isMonthly ? plan.monthly : plan.annually;
+    const finalPrice = appliedDiscount > 0
+      ? price - (price * (appliedDiscount / 100))
+      : price;
+
+    const response = await axios.post("/api/cashfree/initiate", {
+      plan: planName,
+      coupon: coupon || null,
+      userId: user?._id,
+      finalPrice: finalPrice, 
+      appliedDiscount: appliedDiscount,
+    });
+    
+    const { payment_link, message } = response.data;
+    if (payment_link) {
+      window.location.href = payment_link;
+    } else {
+      setCouponMessage(message || "Payment processed. Your plan has been updated.");
+    }
+  } catch (error) {
+    console.error("Payment initiation failed", error);
+    setCouponMessage(error.response?.data?.error || "Payment initiation failed. Please try again.");
+  } finally {
+    setProcessingPlan(null);
+  }
+};
 
   // API key management functions with toast notifications.
   const generateApiKey = async () => {
@@ -404,7 +416,7 @@ export default function Sidebar() {
       onClick: () => router.push("/faq"),
       isActive: pathname === "/faq",
     },
-    ...(!user?.newsletterSubscribed
+    ...(!user?.newsLetterSubscribed
       ? [
           {
             icon: Mail,
@@ -520,7 +532,6 @@ export default function Sidebar() {
           </Button>
         </div>
       </div>
-
 {/* Settings Dialog */}
 <Dialog open={showSettings} onOpenChange={setShowSettings}>
   {/* Responsive dialog content */}
@@ -742,7 +753,7 @@ export default function Sidebar() {
       {/* Other Settings */}
       <div className="space-y-3 sm:space-y-4">
     
-              {user?.newsletterSubscribed && (
+              {user?.newsLetterSubscribed && (
                 <Card className="p-4 shadow-sm">
                   <h3 className="text-xl font-semibold mb-2">
                     Newsletter Subscription
@@ -773,6 +784,7 @@ export default function Sidebar() {
       </Dialog>
 
       {/* Premium Plans Modal */}
+      {/* Premium Plans Modal */}
       <Dialog open={showPlanDialog} onOpenChange={setShowPlanDialog}>
         <DialogContent className="max-w-7xl w-[95vw] max-h-[90vh] overflow-y-auto mx-auto p-4 sm:p-6">
           <DialogHeader className="space-y-3">
@@ -781,90 +793,49 @@ export default function Sidebar() {
             </DialogTitle>
           </DialogHeader>
           
-          {/* Enhanced Coupon Section */}
-          <div className="w-full max-w-lg mx-auto space-y-4">
-            <div className="space-y-3">
+          {/* Coupon Section */}
+          <div className="w-full max-w-md mx-auto space-y-3">
+            <div className="space-y-2">
               <label
                 htmlFor="coupon"
                 className="block text-sm font-medium text-gray-700 dark:text-gray-300"
               >
                 Coupon Code
               </label>
-              
-              {/* Coupon Input and Apply Button */}
               <div className="flex gap-2">
-                <input
-                  type="text"
-                  id="coupon"
-                  value={coupon}
-                  onChange={(e) => setCoupon(e.target.value)}
-                  placeholder="Enter coupon code"
-                  disabled={appliedCoupon}
-                  className={`flex-1 px-3 py-2 border rounded-lg shadow-sm 
-                           bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100
-                           placeholder-gray-500 dark:placeholder-gray-400
-                           focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 
-                           dark:focus:ring-indigo-400 dark:focus:border-indigo-400
-                           transition-colors duration-200 ease-in-out
-                           text-sm sm:text-base
-                           ${appliedCoupon 
-                             ? 'border-green-300 dark:border-green-600 bg-green-50 dark:bg-green-900/20' 
-                             : 'border-gray-300 dark:border-gray-600'
-                           }`}
-                />
-                
-                {!appliedCoupon ? (
-                  <Button
-                    onClick={handleApplyCoupon}
-                    disabled={isApplyingCoupon || !coupon.trim()}
-                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors duration-200 whitespace-nowrap"
-                  >
-                    {isApplyingCoupon ? "Applying..." : "Apply"}
-                  </Button>
-                ) : (
-                  <Button
-                    onClick={handleRemoveCoupon}
-                    variant="outline"
-                    className="px-4 py-2 border-red-300 text-red-600 hover:bg-red-50 dark:border-red-600 dark:text-red-400 dark:hover:bg-red-900/20 font-medium rounded-lg transition-colors duration-200 whitespace-nowrap"
-                  >
-                    Remove
-                  </Button>
-                )}
+              <input
+                type="text"
+                id="coupon"
+                value={coupon}
+                onChange={(e) => setCoupon(e.target.value)}
+                placeholder="Enter coupon code"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm 
+                         bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100
+                         placeholder-gray-500 dark:placeholder-gray-400
+                         focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 
+                         dark:focus:ring-indigo-400 dark:focus:border-indigo-400
+                         transition-colors duration-200 ease-in-out
+                         text-sm sm:text-base"
+              />
+              <Button
+                onClick={handleApplyCoupon}
+                variant="outline"
+                className="shrink-0"
+            >
+                Apply
+            </Button>
               </div>
-
-              {/* Coupon Status Message */}
               {couponMessage && (
-                <div className={`flex items-center gap-2 p-3 rounded-lg text-sm font-medium ${
-                  appliedCoupon
-                    ? "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800"
-                    : "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800"
-                }`}>
-                  {appliedCoupon ? (
-                    <CheckCircle className="h-4 w-4 flex-shrink-0" />
-                  ) : (
-                    <XCircle className="h-4 w-4 flex-shrink-0" />
-                  )}
-                  <span>{couponMessage}</span>
-                </div>
-              )}
-
-              {/* Applied Coupon Summary */}
-              {appliedCoupon && discountPercentage > 0 && (
-                <div className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />
-                      <div>
-                        <p className="font-semibold text-green-800 dark:text-green-200">
-                          Coupon Applied: {appliedCoupon}
-                        </p>
-                        <p className="text-sm text-green-600 dark:text-green-400">
-                          You're saving {discountPercentage}% on your purchase!
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <p
+                  className={`text-xs sm:text-sm font-medium ${
+                    couponMessage.toLowerCase().includes("invalid") ||
+                    couponMessage.toLowerCase().includes("error")
+                      ? "text-red-500 dark:text-red-400"
+                      : "text-green-500 dark:text-green-400"
+                  }`}
+                >
+                  {couponMessage}
+                </p>
               )}
             </div>
           </div>
@@ -872,153 +843,145 @@ export default function Sidebar() {
           {/* Plans Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8 mt-6 sm:mt-8">
             {plans.map((plan) => {
-              const originalPrice = isMonthly ? plan.monthly : plan.annually;
-              const discountedPrice = getDiscountedPrice(originalPrice);
-              const isActive = user?.plan?.toLowerCase() === plan.name.toLowerCase();
+              const price = isMonthly ? plan.monthly : plan.annually;
+              const isActive =
+              user?.plan?.toLowerCase() === plan.name.toLowerCase();
               const isPremium = plan.name !== "Basic";
-              const hasDiscount = appliedCoupon && discountedPrice < originalPrice;
+              
+              // Calculate discounted price for premium plans
+              const discountedPrice = (isPremium && appliedDiscount > 0)
+                ? (price - (price * (appliedDiscount / 100)))
+                : price;
               
               // Function to get button text based on plan name
-              const getButtonText = (planName) => {
-                switch(planName.toLowerCase()) {
-                  case 'basic':
-                    return 'Current Plan';
-                  case 'super':
-                    return 'Upgrade Plan';
-                  case 'advance':
-                    return 'Get Upgrade';
-                  default:
-                    return 'Select Plan';
-                }
-              };
+            const getButtonText = (planName, userPlan) => {
+              const currentPlan = userPlan?.toLowerCase();
+              const targetPlan = planName.toLowerCase();
               
-              return (
-                <div
-                  key={plan.name}
-                  className={`relative flex flex-col p-4 sm:p-6 border-2 rounded-xl shadow-lg transition-all duration-300 hover:shadow-xl
-                    ${isActive 
-                      ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 dark:border-indigo-400" 
-                      : isPremium 
-                        ? "border-gray-200 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-600" 
-                        : "border-gray-200 dark:border-gray-700"
-                    }
-                    ${isPremium ? "transform hover:scale-105" : ""}
-                    bg-white dark:bg-gray-900`}
-                >
-                  {/* Plan Header */}
-                  <div className="text-center mb-4">
-                    <div className="mb-2">
-                      {hasDiscount && originalPrice > 0 && (
-                        <div className="text-lg sm:text-xl text-gray-500 dark:text-gray-400 line-through mb-1">
-                          ₹{originalPrice}
-                        </div>
-                      )}
-                      <div className={`text-3xl sm:text-4xl lg:text-5xl font-bold ${
-                        isPremium 
-                          ? "bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent" 
-                          : "text-gray-900 dark:text-gray-100"
-                      }`}>
-                        {discountedPrice === 0 ? "Free" : `₹${discountedPrice}`}
-                        <span className="text-lg sm:text-xl font-normal text-gray-500 dark:text-gray-400 ml-1">
-                          {discountedPrice === 0 ? "" : `/${isMonthly ? "mo" : "yr"}`}
-                        </span>
-                      </div>
-                      {hasDiscount && originalPrice > 0 && (
-                        <div className="inline-flex items-center gap-1 bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 px-2 py-1 rounded-full text-xs font-medium mt-1">
-                          <span>Save ₹{originalPrice - discountedPrice}</span>
-                          <span className="text-green-600 dark:text-green-400">({discountPercentage}% off)</span>
-                        </div>
-                      )}
-                    </div>
-                    <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
-                      {plan.name}
-                    </h3>
-                    <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-2">
-                      {plan.description}
-                    </p>
-                  </div>
+              if (currentPlan === targetPlan) {
+                return 'Current Plan';
+              }
+              
+              switch(targetPlan) {
+                case 'basic':
+                  return currentPlan === 'super' || currentPlan === 'advance' ? 'Downgrade to Basic' : 'Select Basic';
+                case 'super':
+                  if (currentPlan === 'basic') return 'Upgrade to Super';
+                  if (currentPlan === 'advance') return 'Downgrade to Super';
+                  return 'Select Super';
+                case 'advance':
+                  return currentPlan === 'basic' || currentPlan === 'super' ? 'Upgrade to Advance' : 'Select Advance';
+                default:
+                  return 'Select Plan';
+              }
+            };
+  
+  return (
+    <div
+      key={plan.name}
+      className={`relative flex flex-col p-4 sm:p-6 border-2 rounded-xl shadow-lg transition-all duration-300 hover:shadow-xl
+        ${isActive 
+          ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 dark:border-indigo-400" 
+          : isPremium 
+            ? "border-gray-200 dark:border-gray-700 hover:border-indigo-300 dark:hover:border-indigo-600" 
+            : "border-gray-200 dark:border-gray-700"
+        }
+        ${isPremium ? "transform hover:scale-105" : ""}
+        bg-white dark:bg-gray-900`}
+    >
+      {/* Plan Header */}
+      <div className="text-center mb-4">
+        {/* Display original price with strikethrough if a discount is applied */}
+        {appliedDiscount > 0 && isPremium && (
+          <div className="text-sm font-medium text-gray-400 dark:text-gray-500 line-through">
+            ₹{price}
+          </div>
+        )}
+        <div className={`text-3xl sm:text-4xl lg:text-5xl font-bold mb-2 ${
+          isPremium 
+            ? "bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent" 
+            : "text-gray-900 dark:text-gray-100"
+        }`}>
+          {discountedPrice === 0 ? "Free" : `₹${discountedPrice}`}
+          <span className="text-lg sm:text-xl font-normal text-gray-500 dark:text-gray-400 ml-1">
+            {discountedPrice === 0 ? "" : `/${isMonthly ? "mo" : "yr"}`}
+          </span>
+        </div>
+        <h3 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
+          {plan.name}
+        </h3>
+        <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-2">
+          {plan.description}
+        </p>
+      </div>
 
-                  {/* Divider */}
-                  <div className="border-t border-gray-200 dark:border-gray-700 mb-4"></div>
+      {/* Divider */}
+      <div className="border-t border-gray-200 dark:border-gray-700 mb-4"></div>
 
-                  {/* Features List */}
-                  <ul className="space-y-3 flex-1 mb-6">
-                    {plan.features.map((feature, idx) => (
-                      <li key={idx} className="flex items-start text-sm sm:text-base">
-                        <div className="flex-shrink-0 mt-0.5">
-                          <svg
-                            className="w-5 h-5 text-green-500 dark:text-green-400"
-                            fill="currentColor"
-                            viewBox="0 0 20 20"
-                          >
-                            <path
-                              fillRule="evenodd"
-                              d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293A1 1 0 106.293 10.707l2 2a1 1 0 001.414 0l4-4z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
-                        </div>
-                        <span className="ml-3 text-gray-700 dark:text-gray-300">
-                          {feature}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
+      {/* Features List */}
+      <ul className="space-y-3 flex-1 mb-6">
+        {plan.features.map((feature, idx) => (
+          <li key={idx} className="flex items-start text-sm sm:text-base">
+            <div className="flex-shrink-0 mt-0.5">
+              <svg
+                className="w-5 h-5 text-green-500 dark:text-green-400"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293A1 1 0 106.293 10.707l2 2a1 1 0 001.414 0l4-4z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </div>
+            <span className="ml-3 text-gray-700 dark:text-gray-300">
+              {feature}
+            </span>
+          </li>
+        ))}
+      </ul>
 
-                  {/* Action Button */}
-                  <div className="mt-auto">
-                    {isActive ? (
-                      <Button 
-                        className="w-full h-12 text-base font-semibold bg-gray-100 text-gray-500 cursor-not-allowed" 
-                        disabled
-                      >
-                        Current Plan
-                      </Button>
-                    ) : (
-                      <Button
-                        className={`w-full h-12 text-base font-semibold transition-all duration-300 ${
-                          isPremium
-                            ? "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl"
-                            : "bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200"
-                        }`}
-                        onClick={() => handleBuyNow(plan.name.toLowerCase())}
-                        disabled={isProcessing}
-                      >
-                        {isProcessing ? (
-                          <div className="flex items-center justify-center">
-                            <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            Processing...
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-center gap-2">
-                            {getButtonText(plan.name)}
-                            {hasDiscount && originalPrice > 0 && (
-                              <span className="bg-green-500 text-white px-2 py-1 rounded-full text-xs font-bold">
-                                -{discountPercentage}%
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+    {/* Action Button */}
+    <div className="mt-auto">
+      {isActive ? (
+        <Button 
+          className="w-full h-12 text-base font-semibold bg-gray-100 text-gray-500 cursor-not-allowed" 
+          disabled
+        >
+          Current Plan
+        </Button>
+      ) : (
+        <Button
+          className={`w-full h-12 text-base font-semibold transition-all duration-300 ${
+            isPremium
+              ? "bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white shadow-lg hover:shadow-xl"
+              : "bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200"
+          }`}
+          onClick={() => handleBuyNow(plan.name.toLowerCase())}
+          disabled={processingPlan !== null} // Disable all buttons when any is processing
+        >
+          {processingPlan === plan.name.toLowerCase() ? (
+            <div className="flex items-center justify-center">
+              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Processing...
+            </div>
+          ) : (
+            getButtonText(plan.name, user?.plan)
+          )}
+        </Button>
+      )}
+    </div>
+    </div>
+  );
+})}
           </div>
 
           {/* Additional Info */}
-          <div className="mt-6 sm:mt-8 text-center space-y-2">
-            {appliedCoupon && (
-              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
-                <p className="text-sm text-yellow-800 dark:text-yellow-200 font-medium">
-                  🎉 Great news! Your coupon "{appliedCoupon}" is applied and you're saving {discountPercentage}%!
-                </p>
-              </div>
-            )}
+          <div className="mt-6 sm:mt-8 text-center">
             <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
               All plans include secure payment processing and can be cancelled anytime.
             </p>
