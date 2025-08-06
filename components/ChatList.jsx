@@ -69,35 +69,36 @@ const ChatList = ({ currentTab }) => {
 
   useEffect(() => {
     const fetchChats = async () => {
-  if (!user?._id) {
-    console.log("User ID not found, aborting fetch.");
-    return;
-  }
-  setIsLoading(true);
-  try {
-    const url = getFetchUrl();
-    const response = await fetch(url);
-    const data = await response.json();
-    console.log("Fetched chats data:", data);
+      if (!user?._id) {
+        console.log("User ID not found, aborting fetch.");
+        return;
+      }
+      setIsLoading(true);
+      try {
+        const url = getFetchUrl();
+        const response = await fetch(url);
+        const data = await response.json();
+        console.log("Fetched chats data:", data);
 
-    // Sort chats in descending order by createdAt
-    const sortedChats = data.sort(
-      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-    );
+        // Sort chats in descending order by createdAt
+        const sortedChats = data.sort(
+          (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+        );
 
-    setSelectedChat(sortedChats?.[0] || null);
-    setChats(sortedChats);
-  } catch (error) {
-    console.error("Error fetching chats:", error);
-    toast({
-      title: "Failed to fetch chats",
-      description: "Please try again later.",
-      variant: "destructive",
-    });
-  } finally {
-    setIsLoading(false);
-  }
-};
+        // Keep selectedChat as null initially
+        setSelectedChat(null);
+        setChats(sortedChats);
+      } catch (error) {
+        console.error("Error fetching chats:", error);
+        toast({
+          title: "Failed to fetch chats",
+          description: "Please try again later.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
     fetchChats();
   }, [user, currentTab, setChats, toast]);
@@ -138,9 +139,7 @@ const ChatList = ({ currentTab }) => {
         setSelectedChat(chat);
       }
     }
-    
   };
-  
 
   const deleteChat = async (chatId) => {
     setChatToDelete(chatId);

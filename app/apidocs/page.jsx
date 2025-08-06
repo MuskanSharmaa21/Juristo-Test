@@ -67,7 +67,7 @@ export default function Home() {
         userId: "UID12345678",
         subscription: "premium",
       },
-      curl: 'curl -X GET https://api.juristo.com/connection \\\n  -H "x-api-key: 3e8477c8c3dbc7b0fa05190908120bf123bbae3edb8aa21275e35a86eefac5c"',
+      curl: 'curl -X GET https://api.juristo.in/connection \\\n  -H "x-api-key: 3e8477c8c3dbc7b0fa05190908120bf123bbae3edb8aa21275e35a86eefac5c"',
     },
     {
       id: "chat",
@@ -100,7 +100,7 @@ export default function Home() {
           chatId: "CID1674121234567",
         },
       },
-      curl: 'curl -X POST "https://api.juristo.com/chat?apiKey=3e8477c8c3dbc7b0fa05190908120bf123bbae3edb8aa21275e35a86eefac5c" \\\n  -H "Content-Type: application/json" \\\n  -d \'{\n    "message": "What are the property dispute laws in India?",\n    "country": "India",\n    "language": "en"\n  }\'',
+      curl: 'curl -X POST "https://api.juristo.in/chat?apiKey=3e8477c8c3dbc7b0fa05190908120bf123bbae3edb8aa21275e35a86eefac5c" \\\n  -H "Content-Type: application/json" \\\n  -d \'{\n    "message": "What are the property dispute laws in India?",\n    "country": "India",\n    "language": "en"\n  }\'',
     },
     {
       id: "document_upload",
@@ -123,7 +123,7 @@ export default function Home() {
         title: "Document Title",
         content: "Extracted document content...",
       },
-      curl: 'curl -X POST https://api.juristo.com/document \\\n  -H "x-api-key: 3e8477c8c3dbc7b0fa05190908120bf123bbae3edb8aa21275e35a86eefac5c" \\\n  -F "file=@/path/to/document.pdf"',
+      curl: 'curl -X POST https://api.juristo.in/document \\\n  -H "x-api-key: 3e8477c8c3dbc7b0fa05190908120bf123bbae3edb8aa21275e35a86eefac5c" \\\n  -F "file=@/path/to/document.pdf"',
     },
     {
       id: "document_query",
@@ -147,7 +147,7 @@ export default function Home() {
       response: {
         data: "The document provided is an agreement between...",
       },
-      curl: 'curl -X POST https://api.juristo.com/query \\\n  -H "Content-Type: application/json" \\\n  -H "x-api-key: 3e8477c8c3dbc7b0fa05190908120bf123bbae3edb8aa21275e35a86eefac5c" \\\n  -d \'{\n    "documentId": "unique_document_id",\n    "question": "What is the legal process for property dispute resolution in India?"\n  }\'',
+      curl: 'curl -X POST https://api.juristo.in/query \\\n  -H "Content-Type: application/json" \\\n  -H "x-api-key: 3e8477c8c3dbc7b0fa05190908120bf123bbae3edb8aa21275e35a86eefac5c" \\\n  -d \'{\n    "documentId": "unique_document_id",\n    "question": "What is the legal process for property dispute resolution in India?"\n  }\'',
     },
     {
       id: "drafting_questions",
@@ -201,7 +201,7 @@ export default function Home() {
         docx: "base64 encoded docx",
         pdf: "base64 encoded pdf",
       },
-      curl: 'curl -X POST https://api.juristo.com/drafting/document \\\n  -H "Content-Type: application/json" \\\n  -H "x-api-key: YOUR_API_KEY" \\\n  -d \'{\n    "answers": ["answer1", "answer2"],\n    "userInput": "I want to draft a lease agreement",\n    "country": "India"\n  }\'',
+      curl: 'curl -X POST https://api.juristo.in/drafting/document \\\n  -H "Content-Type: application/json" \\\n  -H "x-api-key: YOUR_API_KEY" \\\n  -d \'{\n    "answers": ["answer1", "answer2"],\n    "userInput": "I want to draft a lease agreement",\n    "country": "India"\n  }\'',
     },
   ];
 

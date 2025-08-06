@@ -17,6 +17,7 @@ import {
   Copy,
   Eye,
   EyeOff,
+  RotateCw,
 } from "lucide-react";
 import {
   Dialog,
@@ -80,6 +81,7 @@ export default function Sidebar() {
   // Track which keys are visible (unmasked)
   const [visibleKeys, setVisibleKeys] = useState({});
   const [processingPlan, setProcessingPlan] = useState(null);
+  const [loadingGenApiKeys, setLoadingGenApiKeys] = useState(false);
 
   // Fetch API keys for the current user.
   const fetchApiKeys = async () => {
@@ -260,6 +262,7 @@ const handleBuyNow = async (planName) => {
 
   // API key management functions with toast notifications.
   const generateApiKey = async () => {
+    setLoadingGenApiKeys(true);
     console.log("Attempting to generate API key");
     try {
       const id = user?.userId || user?._id;
@@ -306,10 +309,13 @@ const handleBuyNow = async (planName) => {
         description: "Failed to generate API key",
         variant: "destructive",
       });
+    }finally{
+      setLoadingGenApiKeys(false);
     }
   };
 
   const regenerateApiKey = async () => {
+    setLoadingGenApiKeys(true);
     console.log("Attempting to regenerate API key");
     try {
       const id = user?.userId || user?._id;
@@ -343,6 +349,8 @@ const handleBuyNow = async (planName) => {
         description: "Failed to regenerate API key",
         variant: "destructive",
       });
+    }finally{
+      setLoadingGenApiKeys(false);
     }
   };
 
@@ -473,7 +481,7 @@ const handleBuyNow = async (planName) => {
 
       {/* Premium Section */}
       <div className="px-4 mt-auto">
-        <Card className="overflow-hidden">
+        <Card className="overflow-hidden h-fit">
           <div className="bg-gradient-to-br from-[#0A2540] to-[#144676] p-4 text-white">
             <h3 className="font-semibold">
               {user?.plan
@@ -542,7 +550,7 @@ const handleBuyNow = async (planName) => {
 
     <div className="space-y-4 sm:space-y-6">
       {/* API Key Management Card */}
-      <Card className="p-3 sm:p-4 shadow-sm">
+      <Card className="p-3 sm:p-4 shadow-sm h-60">
         <h3 className="text-lg sm:text-xl font-semibold mb-3 sm:mb-4">API Key Management</h3>
         <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mb-3 sm:mb-4">
           <Button variant="outline" onClick={generateApiKey} className="w-full sm:w-auto">
@@ -577,77 +585,90 @@ const handleBuyNow = async (planName) => {
             </thead>
 
             <tbody className="bg-white dark:bg-black divide-y divide-gray-200 dark:divide-gray-700">
-              {apiKeys && apiKeys.length > 0 ? (
-                apiKeys.map((item, index) => (
-                  <tr key={index}>
-                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                      <div className="flex items-center space-x-2">
-                        <span className="font-mono">
-                          {visibleKeys[item.key]
-                            ? item.key
-                            : "••••••••••••••••••••"}
-                        </span>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => toggleVisibility(item.key)}
-                          title={visibleKeys[item.key] ? "Hide" : "Show"}
-                        >
-                          {visibleKeys[item.key] ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
-                        </Button>
-                        {visibleKeys[item.key] && (
+              {loadingGenApiKeys ? (
+                // Loading state UI
+                <tr>
+                  <td colSpan="5" className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-center">
+                    <div className="flex justify-center items-center h-16">
+                      <RotateCw className="h-6 w-6 animate-spin text-blue-500" />
+                      <span className="ml-2">Generating API keys...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                // Original UI for showing API keys or "No keys" message
+                apiKeys && apiKeys.length > 0 ? (
+                  apiKeys.map((item, index) => (
+                    <tr key={index}>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                        <div className="flex items-center space-x-2">
+                          <span className="font-mono">
+                            {visibleKeys[item.key]
+                              ? item.key
+                              : "••••••••••••••••••••"}
+                          </span>
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => copyToClipboard(item.key)}
-                            title="Copy"
+                            onClick={() => toggleVisibility(item.key)}
+                            title={visibleKeys[item.key] ? "Hide" : "Show"}
                           >
-                            <Copy className="h-4 w-4" />
+                            {visibleKeys[item.key] ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </Button>
+                          {visibleKeys[item.key] && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => copyToClipboard(item.key)}
+                              title="Copy"
+                            >
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                        {new Date(item.createdAt).toLocaleString()}
+                      </td>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                        {item.expires
+                          ? new Date(item.expires).toLocaleString()
+                          : "Never"}
+                      </td>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm">
+                        {item.active ? (
+                          <span className="text-green-600 dark:text-green-400">Active</span>
+                        ) : (
+                          <span className="text-red-600 dark:text-red-400">Inactive</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2 whitespace-nowrap text-sm">
+                        {item.active && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => deactivateApiKey(item.key)}
+                          >
+                            Deactivate
                           </Button>
                         )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                      {new Date(item.createdAt).toLocaleString()}
-                    </td>
-                    <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                      {item.expires
-                        ? new Date(item.expires).toLocaleString()
-                        : "Never"}
-                    </td>
-                    <td className="px-4 py-2 whitespace-nowrap text-sm">
-                      {item.active ? (
-                        <span className="text-green-600 dark:text-green-400">Active</span>
-                      ) : (
-                        <span className="text-red-600 dark:text-red-400">Inactive</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2 whitespace-nowrap text-sm">
-                      {item.active && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => deactivateApiKey(item.key)}
-                        >
-                          Deactivate
-                        </Button>
-                      )}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td
+                      colSpan="5"
+                      className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-center"
+                    >
+                      No API Keys generated.
                     </td>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td
-                    colSpan="5"
-                    className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 text-center"
-                  >
-                    No API Keys generated.
-                  </td>
-                </tr>
+                )
               )}
             </tbody>
           </table>
@@ -754,11 +775,11 @@ const handleBuyNow = async (planName) => {
       <div className="space-y-3 sm:space-y-4">
     
               {user?.newsLetterSubscribed && (
-                <Card className="p-4 shadow-sm">
+                <Card className="p-4 shadow-sm h-26">
                   <h3 className="text-xl font-semibold mb-2">
                     Newsletter Subscription
                   </h3>
-                  <Button variant="outline" onClick={handleNewsletterOptOut}>
+                  <Button className="mb-2" variant="outline" onClick={handleNewsletterOptOut}>
                     Opt Out
                   </Button>
                 </Card>

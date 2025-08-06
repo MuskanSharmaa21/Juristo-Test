@@ -437,7 +437,7 @@ const ChatBoxForDocs = () => {
               <Button
                 onClick={handleSend}
                 disabled={loading}
-                className="bg-blue-600 hover:bg-blue-700"
+                className="bg-blue-600 hover:bg-blue-700 text-white" 
               >
                 Send
               </Button>
