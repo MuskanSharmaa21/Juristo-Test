@@ -138,7 +138,7 @@ export default function ChatBox() {
       setInput("");
 
       const response = await fetch(
-        "http://localhost:5000/api/chat",
+        "https://juristo-backend-test.vercel.app/api/chat",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -212,7 +212,7 @@ export default function ChatBox() {
 
     try {
       const response = await fetch(
-        "http://localhost:5000/api/chat",
+        "https://juristo-backend-test.vercel.app/api/chat",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

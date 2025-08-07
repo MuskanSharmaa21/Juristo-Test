@@ -121,7 +121,7 @@ const updateUserData = (updatedUser) => {
 // Newsletter Subscribe Function with localStorage update
 const handleNewsletterSubscribe = async () => {
   try {
-    const response = await axios.put("http://localhost:5000/api/users/subscribe-newsletter", {
+    const response = await axios.put("https://juristo-backend-test.vercel.app/api/users/subscribe-newsletter", {
       email: user?.email
     });
     
@@ -148,7 +148,7 @@ const handleNewsletterSubscribe = async () => {
 // Newsletter Opt-out Function with localStorage update
 const handleNewsletterOptOut = async () => {
   try {
-    const response = await axios.put("http://localhost:5000/api/users/subscribe-newsletter", {
+    const response = await axios.put("https://juristo-backend-test.vercel.app/api/users/subscribe-newsletter", {
       email: user?.email,
       unsubscribe: true // Add this flag to handle opt-out
     });
