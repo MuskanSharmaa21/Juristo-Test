@@ -16,6 +16,7 @@ import {
   Languages,
   MessageCircle,
   Rocket,
+  Phone,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -183,6 +184,17 @@ export default function Dashboard() {
                 </p>
                 <p className="text-gray-800 dark:text-gray-200">
                   {user?.language?.label || "English"}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+            <Phone className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+              <div>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Phone
+                </p>
+                <p className="text-gray-800 dark:text-gray-200">
+                  {user?.mobile || "N/A"}
                 </p>
               </div>
             </div>

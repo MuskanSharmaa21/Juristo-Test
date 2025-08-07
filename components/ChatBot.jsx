@@ -138,7 +138,7 @@ export default function ChatBox() {
       setInput("");
 
       const response = await fetch(
-        "https://juristo-backend-test.vercel.app/api/chat",
+        "http://localhost:5000/api/chat",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -207,13 +207,12 @@ export default function ChatBox() {
       country: selectedCountry.name,
       language:
         selectedLanguage.label ||
-        (user.language && user.language.label) ||
         "English",
     };
 
     try {
       const response = await fetch(
-        "https://juristo-backend-test.vercel.app/api/chat",
+        "http://localhost:5000/api/chat",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -303,7 +302,8 @@ export default function ChatBox() {
   const toggleChatList = () => {
     setIsChatListOpen(!isChatListOpen);
   };
-
+    console.log("Selected Country:", selectedCountry);
+  console.log("Selected Language:", selectedLanguage);
   return (
     <div className="flex h-screen">
       <div className="flex-1 flex flex-col">
