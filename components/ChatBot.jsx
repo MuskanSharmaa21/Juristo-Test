@@ -147,6 +147,13 @@ export default function ChatBox() {
       );
 
       const responseData = await response.json();
+      if(response.status === 429){
+        toast({
+        title: "Rate Limit Exceeded",
+        description: responseData.error || "An error occurred",
+        variant: "destructive",
+      });
+      }
       if (responseData && responseData.response) {
         const aiResponse = responseData.response
           .replace(
@@ -221,6 +228,13 @@ export default function ChatBox() {
       );
 
       const responseData = await response.json();
+      if(response.status === 429){
+        toast({
+        title: "Rate Limit Exceeded",
+        description: responseData.error || "An error occurred",
+        variant: "destructive",
+      });
+      }
 
       if (responseData && responseData.response) {
         const aiResponse = responseData.response
